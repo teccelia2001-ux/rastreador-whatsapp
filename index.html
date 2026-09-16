@@ -155,7 +155,7 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 <script>
 const $ = id => document.getElementById(id);
 /* Sobe de 1 em 1 a cada publicação. VERSAO_DATA é só para a dica do rodapé. */
-const VERSAO = 11;
+const VERSAO = 12;
 const VERSAO_DATA = "16/09/2026";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
@@ -583,14 +583,38 @@ function extrair(texto){
     p = p.trim().replace(/^[-–:]+|[.;:]+$/g, "").trim();
     if(!p) continue;
     let i;
-    if((i = p.match(/^(\d{1,4})\s*[xX]?\s+(\S.{0,39})$/))){ r.itens.push({qtd:+i[1], item:i[2].trim()}); continue; }
-    if((i = p.match(/^(\S.{0,39}?)\s+[xX]?\s*(\d{1,4})$/))){ r.itens.push({qtd:+i[2], item:i[1].trim()}); continue; }
+    if((i = p.match(/^(\d{1,4})\s*[xX]?\s+(\S.{0,39})$/)) && itemValido(i[2])){ r.itens.push({qtd:+i[1], item:i[2].trim()}); continue; }
+    if((i = p.match(/^(\S.{0,39}?)\s+[xX]?\s*(\d{1,4})$/)) && itemValido(i[1])){ r.itens.push({qtd:+i[2], item:i[1].trim()}); continue; }
     if(/^\d+$/.test(p)) continue;                       /* número solto não é item */
-    /* sem quantidade, só aceito o que parece código (B2, C3, PT-10) — senão
-       texto corrido viraria "item" */
-    if(/^[A-ZÀ-Ú0-9][A-ZÀ-Ú0-9\-\/.]{0,14}$/.test(p)) r.itens.push({qtd:1, item:p});
+    if(pareceItem(p)){ r.itens.push({qtd:1, item:p}); continue; }
+    /* o fragmento inteiro não era um lançamento: procuro no meio dele */
+    itensNoMeio(p, r);
   }
   return r;
+}
+
+/* Um código de item: B2, C3, PT-10, POSTE. Aceito minúsculo só quando tem
+   dígito (b2), senão "horas" e "pela" virariam item. */
+function pareceItem(tok){
+  if(!/^[A-Za-zÀ-Ýà-ý][A-Za-zÀ-Ýà-ý0-9\-\/.]{0,14}$/.test(tok)) return false;
+  return /\d/.test(tok) || tok === tok.toUpperCase();
+}
+
+/* item é um código, no máximo com a unidade junto ("POSTE 9M") — frase inteira
+   não é item, mesmo começando com número */
+function itemValido(s){
+  const toks = String(s).trim().split(/\s+/);
+  return toks.length <= 2 && toks.every(pareceItem);
+}
+
+/* "instalado hoje 02 B2 e 01 C3 pela equipe" → 2x B2, 1x C3 */
+function itensNoMeio(txt, r){
+  const re = /(\d{1,4})\s*[xX]?\s+([A-Za-zÀ-Ýà-ý][A-Za-zÀ-Ýà-ý0-9\-\/.]{0,14})(\s+\d{1,3}\s*[A-Za-zÀ-Ýà-ý]{1,2}\b)?/g;
+  let m;
+  while((m = re.exec(txt))){
+    if(!pareceItem(m[2])) continue;
+    r.itens.push({qtd:+m[1], item:(m[2] + (m[3] ? " " + m[3].trim() : "")).trim()});
+  }
 }
 
 const chaveItem = s => String(s).toUpperCase().replace(/\s+/g," ").trim();
