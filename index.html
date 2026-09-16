@@ -199,27 +199,30 @@ let grupo="";
 try{ const h=main.querySelector("header"); grupo=h?(h.innerText||"").split("\\n")[0].trim():""; }catch(e){}
 
 /* acha o painel rolavel das mensagens */
-function rolavel(raiz){
-  let melhor=null;
-  raiz.querySelectorAll("div").forEach(n=>{
-    const s=getComputedStyle(n);
-    if(!/auto|scroll/.test(s.overflowY)) return;
-    if(n.scrollHeight<=n.clientHeight+40) return;
-    if(!melhor||n.scrollHeight>melhor.scrollHeight) melhor=n;
-  });
-  return melhor;
-}
-function rolador(){
-  /* o mais confiavel: subir a partir de um balao ate achar quem rola */
+/* Todos os candidatos a "area que rola", do mais provavel ao menos: primeiro os
+   ancestrais de um balao, depois qualquer painel rolavel da tela. Ordeno por
+   quantos baloes cada um contem. */
+function candidatos(){
+  const set=new Set();
+  const rola=n=>{ const s=getComputedStyle(n); return /auto|scroll/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+40; };
   const b=main.querySelector("[data-pre-plain-text]");
-  if(b){ let n=b.parentElement;
-    while(n&&n!==document.body){
-      const s=getComputedStyle(n);
-      if(/auto|scroll/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+40) return n;
-      n=n.parentElement;
-    }
+  if(b){ let n=b.parentElement; while(n&&n!==document.body){ if(rola(n)) set.add(n); n=n.parentElement; } }
+  [main,document.body].forEach(r=>{ if(r) r.querySelectorAll("div").forEach(n=>{ if(rola(n)) set.add(n); }); });
+  return [...set].filter(n=>n.querySelectorAll("[data-pre-plain-text]").length>0)
+    .sort((x,y)=>y.querySelectorAll("[data-pre-plain-text]").length-x.querySelectorAll("[data-pre-plain-text]").length);
+}
+
+/* sobe um pedaco e responde se a tela realmente andou */
+async function sobe(el){
+  const antes=el.scrollTop;
+  const passoPx=Math.max(120,Math.round(el.clientHeight*0.75));
+  el.scrollTop=Math.max(0,antes-passoPx);
+  if(el.scrollTop===antes&&antes>0){
+    /* alguns paineis so reagem a roda do mouse */
+    el.dispatchEvent(new WheelEvent("wheel",{deltaY:-passoPx,bubbles:true,cancelable:true}));
   }
-  return rolavel(main)||rolavel(document.body);
+  await espera(420);
+  return {andou: el.scrollTop!==antes, topo: el.scrollTop<=2};
 }
 
 /* le o que esta na tela; a data/hora/autor vem do data-pre-plain-text do proprio WhatsApp */
@@ -247,8 +250,9 @@ function colher(){
   return vistos.size;
 }
 
-const rol=rolador();
-if(!rol){ p.remove(); alert("Nao encontrei a area rolavel das mensagens. Confira se a conversa esta aberta na tela e use o 'Copiar diagnostico da tela' no sistema."); return; }
+const cands=candidatos();
+if(!cands.length){ p.remove(); alert("Nao encontrei a area rolavel das mensagens. Confira se a conversa esta aberta na tela e use o 'Copiar diagnostico da tela' no sistema."); return; }
+let iCand=0, rol=cands[0];
 
 const t0=Date.now();
 if(colher()===0){
@@ -260,13 +264,14 @@ let igual=0, voltas=0;
 /* Sobe o historico AOS POUCOS: o WhatsApp descarta da tela o que fica longe da
    rolagem, entao pular direto para o topo deixaria mensagens para tras — leio a
    cada passo. Como no termometro, so paro quando a contagem deixa de crescer. */
+let travado=0, chegouAoTopo=false;
 while(!parar && igual<8 && voltas<6000){
   voltas++;
   const antes=vistos.size, alturaAntes=rol.scrollHeight;
-  rol.scrollTop = Math.max(0, rol.scrollTop - Math.round(rol.clientHeight*0.75));
-  await espera(420);
+  const r=await sobe(rol);
   colher();
-  if(rol.scrollTop<=2){
+  if(r.topo){
+    chegouAoTopo=true;
     /* no topo: da tempo do WhatsApp trazer mais historico */
     const b=[...main.querySelectorAll("button,div[role='button']")]
       .find(x=>/carregar mensagens|mensagens anteriores|click here to load|older messages/i.test(x.innerText||""));
@@ -274,6 +279,17 @@ while(!parar && igual<8 && voltas<6000){
     await espera(1000);
   }
   const agora=colher();
+
+  /* se a tela nao anda e nada aparece, e porque agarrei o painel errado —
+     troco pelo proximo candidato em vez de achar que a conversa acabou */
+  if(!r.andou && !r.topo && agora===antes){
+    if(++travado>=3 && iCand+1<cands.length){
+      iCand++; rol=cands[iCand]; travado=0; igual=0;
+      passo("A tela nao rolou — tentando outro painel ("+(iCand+1)+" de "+cands.length+")…");
+      await espera(500); continue;
+    }
+  } else travado=0;
+
   igual = (agora>antes || rol.scrollHeight>alturaAntes) ? 0 : igual+1;
   passo("<b>"+agora+"</b> mensagens espelhadas<br><span style='color:#93a3bf'>subindo o historico · passo "+voltas+
     (LIMITE?" · limite "+LIMITE:"")+(igual?" · quase no fim ("+igual+"/8)":"")+"</span>");
@@ -294,6 +310,9 @@ const periodo=msgs.length?(msgs[0].d.split("-").reverse().join("/")+" a "+msgs[m
 p.style.maxWidth="380px";
 p.innerHTML='<div style="font-weight:800;color:#86efac;font-size:15px;margin-bottom:6px">✅ Coleta concluida</div>'+
  '<div><b>'+msgs.length+'</b> mensagens em <b>'+seg+'s</b><br>'+(grupo?grupo+'<br>':'')+periodo+'</div>'+
+ (parar ? '<div style="color:#fbbf24;margin-top:6px">⚠️ Voce mandou parar — tem mais historico acima.</div>'
+   : chegouAoTopo ? '<div style="color:#86efac;margin-top:6px">✔️ Chegou ao inicio do que o WhatsApp Web tem carregado.</div>'
+   : '<div style="color:#fbbf24;margin-top:6px">⚠️ Parou sem chegar ao topo: a tela nao rolou mais. Rode de novo, ou use o diagnostico no sistema.</div>')+
  '<div style="color:#93a3bf;margin-top:8px">Clique no botao e cole no sistema, em <b>Aplicar coleta</b>.</div>'+
  '<textarea id="__ct" readonly style="width:100%;height:52px;margin-top:8px;background:#0b1220;color:#93a3bf;'+
  'border:1px solid #2c3b57;border-radius:8px;padding:6px;font:11px ui-monospace,Consolas,monospace;resize:none"></textarea>'+
@@ -523,7 +542,8 @@ function render(alvos){
   const top = Object.entries(autores).sort((a,b) => b[1]-a[1])[0];
 
   const cards = `<div class="cards">
-    <div class="card ok"><div class="lbl">Mensagens</div><div class="val">${nnum(RESULT.length)}</div></div>
+    <div class="card ok"><div class="lbl">Citam o número</div><div class="val">${nnum(RESULT.length)}</div>
+      <div class="lbl" style="margin-top:4px;text-transform:none;letter-spacing:0">de ${nnum(FONTES.reduce((s,f)=>s+f.msgs.length,0))} coletadas</div></div>
     <div class="card"><div class="lbl">Dias com registro</div><div class="val">${nnum(dias.length)}</div></div>
     <div class="card"><div class="lbl">Pessoas</div><div class="val">${nnum(Object.keys(autores).length)}</div></div>
     <div class="card"><div class="lbl">Período</div><div class="val pq">${br(dias[0])}<br>até ${br(dias[dias.length-1])}</div></div>
