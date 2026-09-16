@@ -122,6 +122,12 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
       <button class="sec" id="recarregar" hidden>↩️ Recarregar última coleta</button>
       <span id="colaRes" style="font-size:12.5px"></span>
     </div>
+    <p class="muted" style="margin:12px 0 0;font-size:12.5px">⚠️ Tem que ser o <b>WhatsApp Web no navegador</b> (web.whatsapp.com). O aplicativo do WhatsApp para
+      computador não tem barra de favoritos, então o coletor não roda nele.</p>
+    <p class="muted" style="margin:8px 0 0;font-size:12.5px">Não funcionou? Use
+      <button class="sec" id="diag">🩺 Copiar diagnóstico da tela</button> dentro do WhatsApp Web e me mande o resultado — ele descreve
+      a estrutura da tela (quantos balões, onde eles ficam), <b>sem o conteúdo das mensagens</b> e sem enviar nada para lugar nenhum.</p>
+
     <p class="muted" style="margin:12px 0 0;font-size:12.5px">Prefere pelo arquivo? Dá para usar a
       <b>Exportar conversa (sem mídia)</b> do próprio WhatsApp:</p>
     <div class="dropzona" id="drop" style="margin-top:8px">Clique ou arraste aqui o <b>.txt</b> exportado do grupo</div>
@@ -166,9 +172,15 @@ $("btnTema").onclick = () => {
 function scriptColeta(){
   const LIM = Math.max(0, parseInt($("limite").value || "0", 10) || 0);
   return `(async()=>{
-if(!/web\\.whatsapp\\.com$/.test(location.hostname)){alert("Abra o WhatsApp Web (web.whatsapp.com) e a conversa do grupo antes de clicar no coletor.");return}
-const main=document.querySelector("#main");
-if(!main){alert("Abra a conversa do grupo primeiro — o coletor le a conversa que estiver na tela.");return}
+if(!/whatsapp\\.com$/.test(location.hostname)){alert("Esta pagina nao e o WhatsApp Web.\\n\\nAbra web.whatsapp.com NO NAVEGADOR (o aplicativo do WhatsApp para computador nao tem barra de favoritos, entao o coletor nao roda nele), entre na conversa do grupo e so entao clique no favorito.");return}
+/* o painel da conversa ja foi #main e pode mudar de nome: procuro por onde as mensagens realmente estao */
+function achaMain(){
+  const b=document.querySelector("[data-pre-plain-text]");
+  if(b) return b.closest("#main")||b.closest("[data-testid='conversation-panel-messages']")||b.closest("div[role='application']")||document.body;
+  return document.querySelector("#main")||document.querySelector("[data-testid='conversation-panel-messages']")||null;
+}
+const main=achaMain();
+if(!main){alert("Nao achei as mensagens na tela.\\n\\nConfira se a conversa do grupo esta ABERTA (nao so a lista de conversas) e se ja carregou. Se continuar assim, use o botao 'Copiar diagnostico da tela' no sistema e me mande o resultado.");return}
 const LIMITE=${LIM};
 const VERSAO=${VERSAO};
 
@@ -187,15 +199,27 @@ let grupo="";
 try{ const h=main.querySelector("header"); grupo=h?(h.innerText||"").split("\\n")[0].trim():""; }catch(e){}
 
 /* acha o painel rolavel das mensagens */
-function rolador(){
+function rolavel(raiz){
   let melhor=null;
-  main.querySelectorAll("div").forEach(n=>{
+  raiz.querySelectorAll("div").forEach(n=>{
     const s=getComputedStyle(n);
     if(!/auto|scroll/.test(s.overflowY)) return;
     if(n.scrollHeight<=n.clientHeight+40) return;
     if(!melhor||n.scrollHeight>melhor.scrollHeight) melhor=n;
   });
   return melhor;
+}
+function rolador(){
+  /* o mais confiavel: subir a partir de um balao ate achar quem rola */
+  const b=main.querySelector("[data-pre-plain-text]");
+  if(b){ let n=b.parentElement;
+    while(n&&n!==document.body){
+      const s=getComputedStyle(n);
+      if(/auto|scroll/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+40) return n;
+      n=n.parentElement;
+    }
+  }
+  return rolavel(main)||rolavel(document.body);
 }
 
 /* le o que esta na tela; a data/hora/autor vem do data-pre-plain-text do proprio WhatsApp */
@@ -224,10 +248,14 @@ function colher(){
 }
 
 const rol=rolador();
-if(!rol){ p.remove(); alert("Nao encontrei a area das mensagens. Confira se a conversa esta aberta na tela."); return; }
+if(!rol){ p.remove(); alert("Nao encontrei a area rolavel das mensagens. Confira se a conversa esta aberta na tela e use o 'Copiar diagnostico da tela' no sistema."); return; }
 
 const t0=Date.now();
-colher();
+if(colher()===0){
+  p.remove();
+  alert("A conversa esta na tela, mas nao consegui ler nenhuma mensagem — o WhatsApp deve ter mudado a estrutura da pagina.\\n\\nUse o botao 'Copiar diagnostico da tela' no sistema e me mande o resultado: ele descreve a estrutura sem enviar nada para lugar nenhum.");
+  return;
+}
 let igual=0, voltas=0;
 /* sobe o historico ate a contagem parar de crescer — mesma logica do coletor do termometro */
 while(!parar && igual<4 && voltas<3000){
@@ -268,6 +296,53 @@ alert("Coleta concluida: "+msgs.length+" mensagens em "+seg+"s.\\n"+(copiou?"Res
 
 const bookmarklet = () => "javascript:" + encodeURIComponent(scriptColeta().replace(/\/\*[\s\S]*?\*\//g,"").trim());
 
+/* ---------- diagnóstico da tela (só descreve a estrutura, não envia nada) ---------- */
+function scriptDiag(){
+  return `(async()=>{
+const d={url:location.origin+location.pathname,titulo:document.title,quando:new Date().toISOString(),
+  navegador:navigator.userAgent.slice(0,120),achados:{},amostras:[],roláveis:[],topo:[]};
+d.achados.main = !!document.querySelector("#main");
+d.achados.painelConversa = !!document.querySelector("[data-testid='conversation-panel-messages']");
+d.achados.prePlainText = document.querySelectorAll("[data-pre-plain-text]").length;
+d.achados.linhas = document.querySelectorAll("div[role='row']").length;
+d.achados.copyableText = document.querySelectorAll(".copyable-text").length;
+d.achados.selectableText = document.querySelectorAll("span.selectable-text").length;
+d.achados.mensagemIn = document.querySelectorAll(".message-in,.message-out").length;
+
+/* o formato de data/hora do balao, sem o conteudo da mensagem */
+[...document.querySelectorAll("[data-pre-plain-text]")].slice(0,3).forEach(el=>{
+  const pre=el.getAttribute("data-pre-plain-text")||"";
+  d.amostras.push({formato:pre.replace(/\\d/g,"9"), cru:pre.slice(0,42),
+    classes:(el.className||"").toString().slice(0,90), tam:(el.innerText||"").length});
+});
+
+/* estrutura em volta de um balao, so nomes de tag/atributo — nada do texto */
+const b=document.querySelector("[data-pre-plain-text]");
+if(b){ let n=b, cam=[];
+  for(let i=0;i<8&&n&&n!==document.body;i++){
+    const s=getComputedStyle(n);
+    cam.push({tag:n.tagName.toLowerCase(), role:n.getAttribute("role")||"",
+      attrs:[...n.attributes].map(a=>a.name).filter(x=>/^data-|^role$|^id$/.test(x)).join(","),
+      rola:/auto|scroll/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+40});
+    n=n.parentElement;
+  }
+  d.topo=cam;
+}
+document.querySelectorAll("div").forEach(n=>{
+  const s=getComputedStyle(n);
+  if(/auto|scroll/.test(s.overflowY)&&n.scrollHeight>n.clientHeight+80)
+    d.roláveis.push({id:n.id||"", role:n.getAttribute("role")||"", alt:n.scrollHeight, vis:n.clientHeight,
+      baloes:n.querySelectorAll("[data-pre-plain-text]").length});
+});
+d.roláveis=d.roláveis.sort((a,b)=>b.alt-a.alt).slice(0,5);
+
+const txt=JSON.stringify(d,null,1);
+let ok=false; try{ await navigator.clipboard.writeText(txt); ok=true; }catch(e){ window.__diag=txt; }
+alert("Diagnostico "+(ok?"copiado":"em window.__diag (rode copy(window.__diag))")+".\\n\\n"+
+  "baloes: "+d.achados.prePlainText+" | linhas: "+d.achados.linhas+" | #main: "+d.achados.main);
+})()`;
+}
+
 $("abrirWa").onclick = () => window.open(WA_URL, "_blank", "noopener");
 $("bmMostrar").onclick = () => {
   const t = $("cola"); t.value = bookmarklet(); t.focus(); t.select();
@@ -281,6 +356,17 @@ $("bmCopiar").onclick = async () => {
   }catch(e){
     const t=$("cola"); t.value=bm; t.select();
     $("colaRes").innerHTML = "Está no campo acima: selecione tudo, copie e cole na URL de um favorito novo.";
+  }
+};
+
+$("diag").onclick = async () => {
+  const bm = "javascript:" + encodeURIComponent(scriptDiag().replace(/\/\*[\s\S]*?\*\//g,"").trim());
+  try{
+    await navigator.clipboard.writeText(bm);
+    $("colaRes").innerHTML = "🩺 Diagnóstico copiado. Cole na URL de um favorito, abra o grupo no WhatsApp Web e clique nele — depois me mande o texto que ele copiar.";
+  }catch(e){
+    const t=$("cola"); t.value=bm; t.select();
+    $("colaRes").innerHTML = "Está no campo acima: copie e cole na URL de um favorito.";
   }
 };
 
