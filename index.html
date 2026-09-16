@@ -74,6 +74,7 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 .et-obra{color:var(--accent);border-color:var(--accent)}
 .et-st{color:var(--ok-txt);border-color:var(--ok);background:var(--ok-bg)}
 .et-item{color:var(--mark);border-color:var(--mark)}
+.et-anexo{color:var(--btn);border-color:var(--btn)}
 .dropzona{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px}
 .dropzona:hover,.dropzona.over{border-color:var(--accent);color:var(--accent)}
 </style>
@@ -155,7 +156,7 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 <script>
 const $ = id => document.getElementById(id);
 /* Sobe de 1 em 1 a cada publicação. VERSAO_DATA é só para a dica do rodapé. */
-const VERSAO = 12;
+const VERSAO = 13;
 const VERSAO_DATA = "16/09/2026";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
@@ -251,6 +252,22 @@ async function sobe(el){
 
 /* le o que esta na tela; a data/hora/autor vem do data-pre-plain-text do proprio WhatsApp */
 const vistos=new Map();
+/* O que veio junto da mensagem. A miniatura da foto e um blob: dentro do balao,
+   entao da para saber sem abrir nem baixar nada. */
+function anexoDe(linha){
+  try{
+    if(linha.querySelector("img[src^='blob:'],img[src^='data:image']")) return "foto";
+    if(linha.querySelector("video,[data-icon='media-play'],[data-icon='video-call']")) return "video";
+    if(linha.querySelector("[data-icon='audio-play'],[data-icon='ptt'],audio")) return "audio";
+    if(linha.querySelector("[data-icon='document'],[data-icon='sticker']")) return "documento";
+    const rot=[...linha.querySelectorAll("[aria-label]")].map(e=>e.getAttribute("aria-label")||"").join(" ").toLowerCase();
+    if(/foto|imagem|image|photo/.test(rot)) return "foto";
+    if(/v[ií]deo|video/.test(rot)) return "video";
+    if(/[áa]udio|mensagem de voz|voice/.test(rot)) return "audio";
+  }catch(e){}
+  return "";
+}
+
 function colher(){
   main.querySelectorAll("[data-pre-plain-text]").forEach(el=>{
     const pre=el.getAttribute("data-pre-plain-text")||"";
@@ -269,7 +286,7 @@ function colher(){
     if(!t) return;
     const linha=el.closest("[data-id]");
     const id=(linha&&linha.getAttribute("data-id"))||(d+" "+h+" "+autor+" "+t.slice(0,60));
-    if(!vistos.has(id)) vistos.set(id,{d:d,h:h,a:autor,t:t});
+    if(!vistos.has(id)) vistos.set(id,{d:d,h:h,a:autor,t:t,x:anexoDe(linha||el)});
   });
   return vistos.size;
 }
@@ -509,15 +526,28 @@ function parseExport(txt){
       if(y.length === 2) y = "20" + y;
       let [hh,mm] = hora.split(":"); hh = +hh;
       if(ampm){ const pm = ampm.toLowerCase()==="p"; if(pm&&hh<12) hh+=12; if(!pm&&hh===12) hh=0; }
-      atual = { d:`${y}-${pad(mo)}-${pad(d)}`, h:`${pad(hh)}:${mm}`, a:autor.replace(/‎/g,"").trim(), t:texto.replace(/‎/g,"").trim() };
+      atual = { d:`${y}-${pad(mo)}-${pad(d)}`, h:`${pad(hh)}:${mm}`, a:autor.replace(/‎/g,"").trim(), t:texto.replace(/‎/g,"").trim(), x:"" };
     } else if(atual && linha.trim()){
       atual.t += "\n" + linha.replace(/‎/g,"");
     }
   }
   if(atual) out.push(atual);
+  out.forEach(m => { m.x = anexoNoTexto(m.t); });
   return out;
 }
 const pad = n => String(n).padStart(2,"0");
+
+/* No .txt exportado a mídia vira texto: "imagem ocultada", "IMG-0001.jpg
+   (arquivo anexado)", "<Mídia oculta>". */
+function anexoNoTexto(t){
+  const s = String(t).toLowerCase();
+  if(/imagem (ocultada|omitida)|image omitted|\.(jpg|jpeg|png|webp)\b/.test(s)) return "foto";
+  if(/v[íi]deo (ocultado|omitido)|video omitted|\.(mp4|3gp|mov)\b/.test(s)) return "video";
+  if(/[áa]udio (ocultado|omitido)|audio omitted|mensagem de voz|\.(opus|mp3|ogg|m4a)\b/.test(s)) return "audio";
+  if(/figurinha (ocultada|omitida)|sticker omitted|documento omitido|document omitted|\.(pdf|docx?|xlsx?)\b/.test(s)) return "documento";
+  if(/m[íi]dia oculta|arquivo anexado|file attached/.test(s)) return "foto";
+  return "";
+}
 
 function renderFontes(){
   $("fontes").innerHTML = FONTES.map((f,i) =>
@@ -661,6 +691,10 @@ function render(alvos){
     <div class="card"><div class="lbl">Pessoas</div><div class="val">${nnum(Object.keys(autores).length)}</div></div>
     <div class="card"><div class="lbl">Período</div><div class="val pq">${br(dias[0])}<br>até ${br(dias[dias.length-1])}</div></div>
     <div class="card"><div class="lbl">Quem mais citou</div><div class="val pq">${esc(top[0])}<br><span class="muted">${nnum(top[1])} menção(ões)</span></div></div>
+    ${(() => { const cf = RESULT.filter(m => m.x === "foto").length, co = RESULT.filter(m => m.x && m.x !== "foto").length;
+      return (cf || co) ? `
+    <div class="card"><div class="lbl">Com foto</div><div class="val">${nnum(cf)}</div>
+      <div class="lbl" style="margin-top:4px;text-transform:none;letter-spacing:0">${nnum(RESULT.length-cf-co)} só texto${co?` · ${nnum(co)} outra mídia`:""}</div></div>` : ""; })()}
     ${(() => { const it = somaItens(); return it.length ? `
     <div class="card"><div class="lbl">Itens escritos junto</div><div class="val">${nnum(it.length)}</div>
       <div class="lbl" style="margin-top:4px;text-transform:none;letter-spacing:0">${nnum(it.reduce((s,i)=>s+i.qtd,0))} no total · ${esc(it[0].item)} lidera</div></div>` : ""; })()}
@@ -674,7 +708,7 @@ function render(alvos){
         <div class="msg">
           <div class="h">${m.h} · <b>${esc(m.a)}</b>${FONTES.length>1?' · '+esc(m.fonte):''}</div>
           <div class="t">${destacar(m.t, alvos)}</div>
-          ${etiquetas(m.campos)}
+          ${etiquetas(m.campos, m.x)}
         </div>`).join("")}</div>
     </details>`).join("");
 
@@ -685,7 +719,7 @@ function render(alvos){
           <option value="desc"${ORDEM==="desc"?" selected":""}>Mais recente primeiro</option>
           <option value="asc"${ORDEM==="asc"?" selected":""}>Mais antigo primeiro</option>
         </select>
-        <select id="vis"><option value="dias">Ver por data</option><option value="tabela">Ver como tabela</option><option value="itens">Ver itens somados</option></select>
+        <select id="vis"><option value="dias">Ver por data</option><option value="quem">Ver quem enviou</option><option value="tabela">Ver como tabela</option><option value="itens">Ver itens somados</option></select>
         <button class="sec" id="expCsv">📊 Exportar CSV</button>
         <button class="sec" id="expTxt">📄 Exportar TXT</button>
         <button class="sec" id="alterna">Recolher tudo</button>
@@ -696,7 +730,8 @@ function render(alvos){
   $("ord").onchange = e => { ORDEM = e.target.value; render(alvos); };
   $("vis").onchange = e => {
     const v = e.target.value;
-    $("corpo").innerHTML = v === "tabela" ? tabela(alvos) : v === "itens" ? tabelaItens() : linhaDoTempo;
+    $("corpo").innerHTML = v === "tabela" ? tabela(alvos) : v === "itens" ? tabelaItens()
+      : v === "quem" ? tabelaQuem() : linhaDoTempo;
     $("alterna").hidden = v !== "dias";
   };
   $("expCsv").onclick = () => exportarCSV(alvos);
@@ -708,9 +743,13 @@ function render(alvos){
   };
 }
 
-function etiquetas(c){
-  if(!c) return "";
+const ANEXO = {foto:"📷 com foto", video:"🎥 com vídeo", audio:"🎤 com áudio", documento:"📎 com arquivo"};
+const selo = x => ANEXO[x] ? `<span class="et et-anexo">${ANEXO[x]}</span>` : "";
+
+function etiquetas(c, anexo){
   const e = [];
+  if(selo(anexo)) e.push(selo(anexo));
+  if(!c) return e.length ? `<div class="ets">${e.join("")}</div>` : "";
   if(c.dia) e.push(`<span class="et et-dia">📅 dia ${esc(c.dia)}</span>`);
   if(c.obra) e.push(`<span class="et et-obra">🏗️ ${esc(c.obra)}</span>`);
   c.status.forEach(s => e.push(`<span class="et et-st">${esc(s)}</span>`));
@@ -729,6 +768,15 @@ function somaItens(){
       mapa.set(k, r);
     }
   return [...mapa.values()].sort((a,b) => b.qtd - a.qtd || a.item.localeCompare(b.item));
+}
+
+/* quem enviou, quando, e se veio foto junto */
+function tabelaQuem(){
+  const linhas = ORDEM === "asc" ? RESULT : RESULT.slice().reverse();
+  return `<div class="scroll"><table><thead><tr><th>Data</th><th>Hora</th><th>Quem enviou</th><th>Registro</th></tr></thead><tbody>${
+    linhas.map(m => `<tr><td>${br(m.d)}</td><td>${m.h}</td><td><b>${esc(m.a)}</b></td>
+      <td>${ANEXO[m.x] ? ANEXO[m.x] : '<span class="muted">só texto</span>'}</td></tr>`).join("")
+  }</tbody></table></div>`;
 }
 
 function tabelaItens(){
@@ -756,10 +804,10 @@ function destacar(texto, alvos){
 
 /* ================= exportação ================= */
 function exportarCSV(alvos){
-  const linhas = [["Data","Hora","Quem","Dia (na mensagem)","Obra","Status","Itens","Mensagem","Origem"]];
+  const linhas = [["Data","Hora","Quem","Registro","Dia (na mensagem)","Obra","Status","Itens","Mensagem","Origem"]];
   for(const m of RESULT){
     const c = m.campos || {dia:"",obra:"",status:[],itens:[]};
-    linhas.push([br(m.d), m.h, m.a, c.dia, c.obra, c.status.join(" / "),
+    linhas.push([br(m.d), m.h, m.a, m.x || "só texto", c.dia, c.obra, c.status.join(" / "),
       c.itens.map(i => (i.qtd>1 ? i.qtd+"x " : "") + i.item).join(" / "),
       m.t.replace(/\n/g," | "), m.fonte]);
   }
