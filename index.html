@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2212%22%20fill%3D%22%230b1220%22%2F%3E%3Ccircle%20cx%3D%2228%22%20cy%3D%2228%22%20r%3D%2214%22%20fill%3D%22none%22%20stroke%3D%22%2325d366%22%20stroke-width%3D%226%22%2F%3E%3C%2Fsvg%3E">
+<title>Rastreador de número — WhatsApp</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#151f33; --panel2:#1c2942; --line:#2c3b57; --txt:#e8eefc; --muted:#93a3bf;
+  --head:#22304a; --accent:#25d366; --btn:#2563eb; --ok:#22c55e; --ok-bg:rgba(34,197,94,.14); --ok-txt:#86efac;
+  --bad:#ef4444; --bad-bg:rgba(239,68,68,.14); --bad-txt:#fca5a5; --mark:#f59e0b;
+}
+[data-tema="claro"]{
+  --bg:#f1f5f9; --panel:#ffffff; --panel2:#f8fafc; --line:#d7dee8; --txt:#0f172a; --muted:#5b6b85;
+  --head:#e2e8f0; --accent:#128c7e; --ok:#16a34a; --ok-bg:#dcfce7; --ok-txt:#15803d;
+  --bad:#dc2626; --bad-bg:#fee2e2; --bad-txt:#b91c1c;
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+header{background:linear-gradient(90deg,var(--panel),var(--panel2));padding:14px 20px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+h1{margin:0;font-size:18px}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.wrap{padding:16px 20px;max-width:1400px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.box h2{margin:0 0 4px;font-size:15px}
+.box .passo{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:99px;
+  background:var(--btn);color:#fff;font-size:12px;font-weight:800;margin-right:8px}
+input,select,button,textarea{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button{cursor:pointer;background:var(--btn);border-color:var(--btn);color:#fff;font-weight:600}
+button.sec{background:var(--panel2);border-color:var(--line);color:var(--txt);font-weight:500}
+button:hover{filter:brightness(1.08)}
+textarea{width:100%;font:12.5px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+.linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.card .val{font-size:20px;font-weight:700;margin-top:3px}
+.card .val.pq{font-size:14px;line-height:1.35;font-weight:600}
+.card.ok{border-color:var(--ok);background:var(--ok-bg)} .card.ok .val{color:var(--ok-txt)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}
+th{background:var(--head);position:sticky;top:0;white-space:nowrap;font-size:12px}
+tbody tr:nth-child(even){background:var(--panel2)}
+tbody tr:hover{background:var(--head)}
+.scroll{max-height:62vh;overflow:auto;border-radius:10px;border:1px solid var(--line)}
+.muted{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:flex;align-items:center;gap:6px;padding:3px 6px 3px 10px;border-radius:99px;background:var(--panel2);
+  border:1px solid var(--accent);font-size:12.5px;font-weight:600}
+.chip button{background:transparent;border:0;color:var(--muted);padding:0 4px;font-weight:800;cursor:pointer}
+.chip button:hover{color:var(--bad)}
+#vazio{padding:36px 20px;text-align:center;border:2px dashed var(--line);border-radius:12px;background:var(--panel)}
+#vazio .big{font-size:32px}
+.ok{color:var(--ok-txt)} .bad{color:var(--bad-txt)}
+ol{font-size:13px;padding-left:20px;line-height:1.75;margin:8px 0 0}
+label.inl{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+details.dia{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;background:var(--panel)}
+details.dia>summary{background:var(--head);padding:9px 12px;cursor:pointer;font-weight:700;display:flex;
+  justify-content:space-between;gap:10px;align-items:center;list-style:none;font-size:13.5px}
+details.dia>summary::-webkit-details-marker{display:none}
+details.dia>summary .c{color:var(--muted);font-weight:500;font-size:12px}
+.msgs{padding:6px 10px}
+.msg{border-left:3px solid var(--accent);background:var(--panel2);border-radius:0 8px 8px 0;padding:7px 11px;margin:7px 0}
+.msg .h{font-size:11.5px;color:var(--muted);margin-bottom:2px}
+.msg .h b{color:var(--accent)}
+.msg .t{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
+mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weight:700}
+.dropzona{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px}
+.dropzona:hover,.dropzona.over{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🔎 Rastreador de número — WhatsApp</h1>
+    <div class="sub">Colhe do grupo todas as mensagens que citam um número e organiza por data.</div>
+  </div>
+  <span style="flex:1"></span>
+  <button class="sec" id="btnTema">🌙 Tema</button>
+</header>
+
+<div class="wrap">
+
+  <div class="box">
+    <h2><span class="passo">1</span>Número a rastrear</h2>
+    <p class="muted" style="margin:10px 0 0;font-size:12.5px">Digite o número <b>como ele aparece</b> — ex.: <b>0032503170</b>.
+      Um por linha (ou separados por vírgula) se quiser rastrear vários de uma vez. A busca ignora ponto, traço, barra e espaço:
+      <b>0032503170</b> também acha <b>003.250.3170</b> e <b>0032-503170</b>.</p>
+    <textarea id="nums" rows="3" placeholder="0032503170"></textarea>
+    <div class="linha">
+      <span id="numsRes" class="muted" style="font-size:12.5px"></span>
+      <span style="flex:1"></span>
+      <label class="inl"><input type="checkbox" id="exato"> só o número inteiro (sem casar dentro de outro maior)</label>
+      <button class="sec" id="numsLimpar">Limpar</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2><span class="passo">2</span>Coletar no WhatsApp Web</h2>
+    <p class="muted" style="margin:6px 0 0;font-size:12.5px">O WhatsApp exige login, por isso a coleta roda dentro dele, por um favorito do navegador —
+      o mesmo esquema do coletor do termômetro. O coletor <b>espelha a tela</b>: lê as mensagens da conversa aberta, sobe o histórico
+      até parar de crescer e copia tudo. <b>Nada é enviado para lugar nenhum</b>, nada é escrito no grupo e nenhuma mensagem é alterada.</p>
+    <ol>
+      <li><b>Uma vez só:</b> <button id="bmCopiar">Copiar o coletor</button> <button class="sec" id="bmMostrar">mostrar o endereço</button>
+        e crie um favorito com ele — no Chrome, <b>Ctrl+Shift+O</b> → menu <b>⋮</b> → <b>Adicionar novo favorito</b> →
+        cole no campo <b>URL</b>, dê o nome <i>Coletar WhatsApp</i> e salve. Deixe a barra de favoritos visível (<b>Ctrl+Shift+B</b>).</li>
+      <li><button class="sec" id="abrirWa">Abrir o WhatsApp Web</button>, <b>abra a conversa do grupo</b> e clique no favorito.
+        Ele mostra um painel no canto com o andamento e dá para parar quando quiser.</li>
+      <li>Volte aqui, cole no campo abaixo e aplique:</li>
+    </ol>
+    <div class="linha" style="margin-top:12px">
+      <label class="inl">Subir o histórico até <input type="number" id="limite" value="0" min="0" step="500" style="width:90px"> mensagens
+        <span class="muted">(0 = até o começo do grupo)</span></label>
+    </div>
+    <textarea id="cola" rows="4" placeholder="Cole aqui o resultado da coleta" style="margin-top:10px"></textarea>
+    <div class="linha">
+      <button id="aplicar">✅ Aplicar coleta</button>
+      <button class="sec" id="limparColeta">🧹 Limpar coleta</button>
+      <button class="sec" id="recarregar" hidden>↩️ Recarregar última coleta</button>
+      <span id="colaRes" style="font-size:12.5px"></span>
+    </div>
+    <p class="muted" style="margin:12px 0 0;font-size:12.5px">Prefere pelo arquivo? Dá para usar a
+      <b>Exportar conversa (sem mídia)</b> do próprio WhatsApp:</p>
+    <div class="dropzona" id="drop" style="margin-top:8px">Clique ou arraste aqui o <b>.txt</b> exportado do grupo</div>
+    <input type="file" id="arq" accept=".txt" multiple hidden>
+    <div class="chips" id="fontes"></div>
+  </div>
+
+  <div id="saida"></div>
+
+  <div id="vazio">
+    <div class="big">📭</div>
+    <div class="muted" style="margin-top:8px">Informe o número no passo 1 e traga a coleta no passo 2.</div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const VERSAO = 1;
+const WA_URL = "https://web.whatsapp.com/";
+const CHAVE = "rastreador-wa-coleta";
+
+/* ---------- guarda local tolerante a localStorage bloqueado ---------- */
+const guarda = {
+  set(v){ try{ localStorage.setItem(CHAVE, v); }catch(e){} },
+  get(){ try{ return localStorage.getItem(CHAVE); }catch(e){ return null; } },
+  limpa(){ try{ localStorage.removeItem(CHAVE); }catch(e){} }
+};
+
+let FONTES = [];   /* [{nome, origem:'coleta'|'arquivo', msgs:[{d,h,a,t}]}] */
+let RESULT = [];
+
+/* ================= tema ================= */
+(function(){ try{ const t=localStorage.getItem("rastreador-wa-tema"); if(t) document.documentElement.dataset.tema=t; }catch(e){} })();
+$("btnTema").onclick = () => {
+  const claro = document.documentElement.dataset.tema === "claro";
+  document.documentElement.dataset.tema = claro ? "" : "claro";
+  try{ localStorage.setItem("rastreador-wa-tema", claro ? "" : "claro"); }catch(e){}
+};
+
+/* ================= o coletor (roda dentro do WhatsApp Web) ================= */
+function scriptColeta(){
+  const LIM = Math.max(0, parseInt($("limite").value || "0", 10) || 0);
+  return `(async()=>{
+if(!/web\\.whatsapp\\.com$/.test(location.hostname)){alert("Abra o WhatsApp Web (web.whatsapp.com) e a conversa do grupo antes de clicar no coletor.");return}
+const main=document.querySelector("#main");
+if(!main){alert("Abra a conversa do grupo primeiro — o coletor le a conversa que estiver na tela.");return}
+const LIMITE=${LIM};
+const VERSAO=${VERSAO};
+
+/* painel de andamento */
+const p=document.createElement("div");
+p.style.cssText="position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#151f33;color:#e8eefc;border:1px solid #2c3b57;border-radius:12px;padding:14px 16px;font:13px/1.5 system-ui;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:330px";
+document.body.appendChild(p);
+let parar=false;
+const pinta=h=>{p.innerHTML=h;const b=p.querySelector("#__wp");if(b)b.onclick=()=>{parar=true;b.textContent="parando...";};};
+const passo=t=>pinta('<div style="font-weight:800;color:#25d366;margin-bottom:6px">Coletando…</div><div>'+t+'</div>'+
+  '<button id="__wp" style="margin-top:10px;padding:6px 12px;border-radius:8px;border:0;background:#ef4444;color:#fff;font:600 12px system-ui;cursor:pointer">Parar e usar o que já veio</button>');
+const espera=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* nome do grupo, so para identificar a coleta */
+let grupo="";
+try{ const h=main.querySelector("header"); grupo=h?(h.innerText||"").split("\\n")[0].trim():""; }catch(e){}
+
+/* acha o painel rolavel das mensagens */
+function rolador(){
+  let melhor=null;
+  main.querySelectorAll("div").forEach(n=>{
+    const s=getComputedStyle(n);
+    if(!/auto|scroll/.test(s.overflowY)) return;
+    if(n.scrollHeight<=n.clientHeight+40) return;
+    if(!melhor||n.scrollHeight>melhor.scrollHeight) melhor=n;
+  });
+  return melhor;
+}
+
+/* le o que esta na tela; a data/hora/autor vem do data-pre-plain-text do proprio WhatsApp */
+const vistos=new Map();
+function colher(){
+  main.querySelectorAll("[data-pre-plain-text]").forEach(el=>{
+    const pre=el.getAttribute("data-pre-plain-text")||"";
+    const m=pre.match(/\\[\\s*(\\d{1,2}):(\\d{2})(?::(\\d{2}))?\\s*([AaPp])?\\.?[Mm]?\\.?,\\s*(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2,4})\\s*\\]\\s*([^:]*):/);
+    if(!m) return;
+    let hh=+m[1]; const mm=m[2];
+    if(m[4]){const pm=m[4].toLowerCase()==="p"; if(pm&&hh<12)hh+=12; if(!pm&&hh===12)hh=0;}
+    let a=+m[5], b=+m[6]; let y=m[7]; if(y.length===2) y="20"+y;
+    let dia=a, mes=b; if(a<=12&&b>12){dia=b;mes=a;}          /* tela em MM/DD */
+    const d=y+"-"+String(mes).padStart(2,"0")+"-"+String(dia).padStart(2,"0");
+    const h=String(hh).padStart(2,"0")+":"+mm;
+    const autor=(m[8]||"").trim();
+    let t="";
+    const alvo=el.querySelector("span.selectable-text")||el.querySelector("span[dir='auto']");
+    t=((alvo?alvo.innerText:el.innerText)||"").trim();
+    if(!t) return;
+    const linha=el.closest("[data-id]");
+    const id=(linha&&linha.getAttribute("data-id"))||(d+" "+h+" "+autor+" "+t.slice(0,60));
+    if(!vistos.has(id)) vistos.set(id,{d:d,h:h,a:autor,t:t});
+  });
+  return vistos.size;
+}
+
+const rol=rolador();
+if(!rol){ p.remove(); alert("Nao encontrei a area das mensagens. Confira se a conversa esta aberta na tela."); return; }
+
+const t0=Date.now();
+colher();
+let igual=0, voltas=0;
+/* sobe o historico ate a contagem parar de crescer — mesma logica do coletor do termometro */
+while(!parar && igual<4 && voltas<3000){
+  voltas++;
+  const antes=vistos.size;
+  rol.scrollTop=0;
+  await espera(650);
+  /* se aparecer o botao de carregar mensagens antigas, clica */
+  const b=[...main.querySelectorAll("button,div[role='button']")]
+    .find(x=>/carregar mensagens|mensagens anteriores|click here to load|older messages/i.test(x.innerText||""));
+  if(b){ b.click(); await espera(900); }
+  const agora=colher();
+  igual = agora>antes ? 0 : igual+1;
+  passo("<b>"+agora+"</b> mensagens espelhadas · volta "+voltas+(LIMITE?" · limite "+LIMITE:""));
+  if(LIMITE && agora>=LIMITE) break;
+  if(rol.scrollTop>0 && agora===antes) await espera(400);
+}
+colher();
+
+const msgs=[...vistos.values()].sort((x,y)=>(x.d+x.h).localeCompare(y.d+y.h));
+const res={v:VERSAO,gerado:new Date().toISOString(),grupo:grupo,total:msgs.length,msgs:msgs};
+const txt=JSON.stringify(res);
+let copiou=false;
+try{ await navigator.clipboard.writeText(txt); copiou=true; }catch(e){ window.__coleta=txt; }
+const seg=Math.round((Date.now()-t0)/1000);
+const periodo=msgs.length?(msgs[0].d.split("-").reverse().join("/")+" a "+msgs[msgs.length-1].d.split("-").reverse().join("/")):"—";
+p.innerHTML='<div style="font-weight:800;color:#86efac;font-size:15px;margin-bottom:6px">✅ Coleta concluida</div>'+
+ '<div><b>'+msgs.length+'</b> mensagens em <b>'+seg+'s</b><br>'+(grupo?grupo+'<br>':'')+periodo+'</div>'+
+ '<div style="color:#93a3bf;margin-top:6px">'+(copiou
+   ? 'Resultado copiado. Volte ao sistema, cole no campo e clique em <b>Aplicar coleta</b>.'
+   : 'Nao consegui copiar: rode <b>copy(window.__coleta)</b> no console.')+'</div>'+
+ '<button id="__cf" style="margin-top:10px;padding:6px 12px;border-radius:8px;border:0;background:#2563eb;color:#fff;font:600 12px system-ui;cursor:pointer">Fechar</button>';
+p.querySelector("#__cf").onclick=()=>p.remove();
+setTimeout(()=>{if(p.isConnected)p.remove()},90000);
+alert("Coleta concluida: "+msgs.length+" mensagens em "+seg+"s.\\n"+(copiou?"Resultado copiado — cole no sistema.":"Rode copy(window.__coleta) no console."));
+})()`;
+}
+
+const bookmarklet = () => "javascript:" + encodeURIComponent(scriptColeta().replace(/\/\*[\s\S]*?\*\//g,"").trim());
+
+$("abrirWa").onclick = () => window.open(WA_URL, "_blank", "noopener");
+$("bmMostrar").onclick = () => {
+  const t = $("cola"); t.value = bookmarklet(); t.focus(); t.select();
+  $("colaRes").innerHTML = "O endereço está no campo acima, já selecionado — copie com <b>Ctrl+C</b> e cole na URL do favorito. Copie tudo.";
+};
+$("bmCopiar").onclick = async () => {
+  const bm = bookmarklet();
+  try{
+    await navigator.clipboard.writeText(bm);
+    $("colaRes").innerHTML = "✅ Coletor copiado. Cole no campo <b>URL</b> de um favorito novo (ou atualize o que já existe) e clique nele com a conversa do grupo aberta.";
+  }catch(e){
+    const t=$("cola"); t.value=bm; t.select();
+    $("colaRes").innerHTML = "Está no campo acima: selecione tudo, copie e cole na URL de um favorito novo.";
+  }
+};
+
+/* ================= aplicar a coleta ================= */
+$("aplicar").onclick = () => {
+  const bruto = $("cola").value.trim();
+  if(!bruto){ $("colaRes").innerHTML = '<span class="bad">❌ Cole o resultado da coleta primeiro.</span>'; return; }
+  if(/^javascript:/i.test(bruto)){ $("colaRes").innerHTML = '<span class="bad">❌ Isso é o endereço do coletor, não o resultado. Cole o que o coletor copiou dentro do WhatsApp.</span>'; return; }
+  let o;
+  try{ o = JSON.parse(bruto); }
+  catch(e){ $("colaRes").innerHTML = '<span class="bad">❌ Não consegui ler a coleta — copie de novo, inteira.</span>'; return; }
+  if(!o || !Array.isArray(o.msgs)){ $("colaRes").innerHTML = '<span class="bad">❌ A coleta veio sem mensagens.</span>'; return; }
+  const nome = o.grupo || "coleta do WhatsApp";
+  FONTES = FONTES.filter(f => f.nome !== nome);
+  FONTES.push({nome, origem:"coleta", msgs:o.msgs});
+  guarda.set(bruto);
+  $("recarregar").hidden = false;
+  $("colaRes").innerHTML = '<span class="ok">✅ ' + nnum(o.msgs.length) + ' mensagens aplicadas.</span>';
+  renderFontes(); rastrear();
+};
+$("limparColeta").onclick = () => {
+  FONTES = FONTES.filter(f => f.origem !== "coleta");
+  $("cola").value = ""; $("colaRes").textContent = "";
+  renderFontes(); rastrear();
+};
+$("recarregar").onclick = () => { const v = guarda.get(); if(v){ $("cola").value = v; $("aplicar").click(); } };
+if(guarda.get()) $("recarregar").hidden = false;
+
+/* ================= caminho alternativo: .txt exportado ================= */
+const drop = $("drop"), arq = $("arq");
+drop.onclick = () => arq.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); lerArquivos(e.dataTransfer.files); };
+arq.onchange = e => lerArquivos(e.target.files);
+
+async function lerArquivos(lista){
+  for(const f of lista){
+    if(/\.zip$/i.test(f.name)){ alert("Extraia o .zip primeiro e solte o .txt de dentro dele."); continue; }
+    const txt = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsText(f, "UTF-8"); });
+    FONTES = FONTES.filter(x => x.nome !== f.name);
+    FONTES.push({nome: f.name, origem: "arquivo", msgs: parseExport(txt)});
+  }
+  renderFontes(); rastrear();
+}
+
+/* [16/09/2026, 10:32:11] Nome: texto   |   16/09/2026 10:32 - Nome: texto */
+const RE_LINHA = /^‎?\[?(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:([AaPp])\.?[Mm]\.?)?\]?\s*[-–]?\s*([^:]{1,60}?):\s([\s\S]*)$/;
+function parseExport(txt){
+  const out = []; let atual = null;
+  for(const linha of txt.replace(/\r/g,"").split("\n")){
+    const m = linha.match(RE_LINHA);
+    if(m){
+      if(atual) out.push(atual);
+      let [,d,mo,y,hora,ampm,autor,texto] = m;
+      if(y.length === 2) y = "20" + y;
+      let [hh,mm] = hora.split(":"); hh = +hh;
+      if(ampm){ const pm = ampm.toLowerCase()==="p"; if(pm&&hh<12) hh+=12; if(!pm&&hh===12) hh=0; }
+      atual = { d:`${y}-${pad(mo)}-${pad(d)}`, h:`${pad(hh)}:${mm}`, a:autor.replace(/‎/g,"").trim(), t:texto.replace(/‎/g,"").trim() };
+    } else if(atual && linha.trim()){
+      atual.t += "\n" + linha.replace(/‎/g,"");
+    }
+  }
+  if(atual) out.push(atual);
+  return out;
+}
+const pad = n => String(n).padStart(2,"0");
+
+function renderFontes(){
+  $("fontes").innerHTML = FONTES.map((f,i) =>
+    `<span class="chip">${f.origem==="coleta"?"📱":"📄"} ${esc(f.nome)} · <b>${nnum(f.msgs.length)}</b> msgs<button data-i="${i}" title="remover">✕</button></span>`
+  ).join("");
+  $("fontes").querySelectorAll("button").forEach(b => b.onclick = () => { FONTES.splice(+b.dataset.i,1); renderFontes(); rastrear(); });
+}
+
+/* ================= busca ================= */
+const soDigitos = s => String(s).replace(/[^0-9]/g,"");
+function lerNums(){
+  return [...new Set($("nums").value.split(/[\n,;]/).map(soDigitos).filter(s => s.length >= 3))];
+}
+$("nums").oninput = () => {
+  const n = lerNums();
+  $("numsRes").textContent = n.length ? `${nnum(n.length)} número(s): ${n.join(", ")}` : "";
+};
+$("numsLimpar").onclick = () => { $("nums").value=""; $("nums").oninput(); rastrear(); };
+$("nums").onkeydown = e => { if(e.key === "Enter" && e.ctrlKey) rastrear(); };
+$("nums").onchange = rastrear;
+$("exato").onchange = rastrear;
+
+function casa(texto, alvos, exato){
+  if(!exato){
+    const d = soDigitos(texto);
+    return alvos.filter(a => d.includes(a));
+  }
+  const blocos = (texto.match(/\d[\d.\-\/\s]*\d|\d+/g) || []).map(soDigitos);
+  return alvos.filter(a => blocos.includes(a));
+}
+
+function rastrear(){
+  const alvos = lerNums();
+  const temFonte = FONTES.some(f => f.msgs.length);
+  if(!alvos.length || !temFonte){
+    $("saida").innerHTML = ""; $("vazio").hidden = false;
+    $("vazio").querySelector(".muted").innerHTML = !temFonte
+      ? "Traga a coleta no passo 2 — pelo coletor do WhatsApp Web ou pelo .txt exportado."
+      : "Informe o número no passo 1.";
+    return;
+  }
+  const exato = $("exato").checked;
+  RESULT = [];
+  for(const f of FONTES)
+    for(const m of f.msgs){
+      const achou = casa(m.t, alvos, exato);
+      if(achou.length) RESULT.push({...m, fonte:f.nome, achou});
+    }
+  RESULT.sort((a,b) => (a.d+a.h).localeCompare(b.d+b.h));
+  $("vazio").hidden = true;
+  render(alvos);
+}
+
+/* ================= painel ================= */
+let ORDEM = "desc";
+function render(alvos){
+  if(!RESULT.length){
+    $("saida").innerHTML = `<div class="box"><div style="text-align:center;padding:26px" class="muted">
+      Nenhuma mensagem cita <b>${esc(alvos.join(", "))}</b> nas ${nnum(FONTES.reduce((s,f)=>s+f.msgs.length,0))} mensagens coletadas.</div></div>`;
+    return;
+  }
+  const porDia = {}, autores = {};
+  for(const m of RESULT){ (porDia[m.d] = porDia[m.d] || []).push(m); autores[m.a] = (autores[m.a]||0)+1; }
+  const dias = Object.keys(porDia).sort();
+  const top = Object.entries(autores).sort((a,b) => b[1]-a[1])[0];
+
+  const cards = `<div class="cards">
+    <div class="card ok"><div class="lbl">Mensagens</div><div class="val">${nnum(RESULT.length)}</div></div>
+    <div class="card"><div class="lbl">Dias com registro</div><div class="val">${nnum(dias.length)}</div></div>
+    <div class="card"><div class="lbl">Pessoas</div><div class="val">${nnum(Object.keys(autores).length)}</div></div>
+    <div class="card"><div class="lbl">Período</div><div class="val pq">${br(dias[0])}<br>até ${br(dias[dias.length-1])}</div></div>
+    <div class="card"><div class="lbl">Quem mais citou</div><div class="val pq">${esc(top[0])}<br><span class="muted">${nnum(top[1])} menção(ões)</span></div></div>
+  </div>`;
+
+  const ordenados = ORDEM === "asc" ? dias : dias.slice().reverse();
+  const linhaDoTempo = ordenados.map(d => `
+    <details class="dia" open>
+      <summary><span>📅 ${br(d)} · ${diaSemana(d)}</span><span class="c">${nnum(porDia[d].length)} mensagem(ns)</span></summary>
+      <div class="msgs">${porDia[d].map(m => `
+        <div class="msg">
+          <div class="h">${m.h} · <b>${esc(m.a)}</b>${FONTES.length>1?' · '+esc(m.fonte):''}</div>
+          <div class="t">${destacar(m.t, alvos)}</div>
+        </div>`).join("")}</div>
+    </details>`).join("");
+
+  $("saida").innerHTML = cards + `
+    <div class="box">
+      <div class="linha" style="margin-top:0">
+        <select id="ord">
+          <option value="desc"${ORDEM==="desc"?" selected":""}>Mais recente primeiro</option>
+          <option value="asc"${ORDEM==="asc"?" selected":""}>Mais antigo primeiro</option>
+        </select>
+        <select id="vis"><option value="dias">Ver por data</option><option value="tabela">Ver como tabela</option></select>
+        <button class="sec" id="expCsv">📊 Exportar CSV</button>
+        <button class="sec" id="expTxt">📄 Exportar TXT</button>
+        <button class="sec" id="alterna">Recolher tudo</button>
+      </div>
+      <div id="corpo" style="margin-top:12px">${linhaDoTempo}</div>
+    </div>`;
+
+  $("ord").onchange = e => { ORDEM = e.target.value; render(alvos); };
+  $("vis").onchange = e => {
+    $("corpo").innerHTML = e.target.value === "tabela" ? tabela(alvos) : linhaDoTempo;
+    $("alterna").hidden = e.target.value === "tabela";
+  };
+  $("expCsv").onclick = () => exportarCSV(alvos);
+  $("expTxt").onclick = () => exportarTXT(alvos);
+  $("alterna").onclick = e => {
+    const abrir = e.target.textContent.startsWith("Expandir");
+    document.querySelectorAll("details.dia").forEach(d => d.open = abrir);
+    e.target.textContent = abrir ? "Recolher tudo" : "Expandir tudo";
+  };
+}
+
+function tabela(alvos){
+  const linhas = (ORDEM === "asc" ? RESULT : RESULT.slice().reverse());
+  return `<div class="scroll"><table><thead><tr><th>Data</th><th>Hora</th><th>Quem</th><th>Mensagem</th></tr></thead><tbody>${
+    linhas.map(m => `<tr><td>${br(m.d)}</td><td>${m.h}</td><td>${esc(m.a)}</td><td>${destacar(m.t, alvos)}</td></tr>`).join("")
+  }</tbody></table></div>`;
+}
+
+function destacar(texto, alvos){
+  return esc(texto).replace(/\d[\d.\-\/\s]*\d|\d+/g, trecho => {
+    const d = soDigitos(trecho);
+    return alvos.some(a => d.includes(a)) ? `<mark>${trecho}</mark>` : trecho;
+  });
+}
+
+/* ================= exportação ================= */
+function exportarCSV(alvos){
+  const linhas = [["Data","Hora","Quem","Mensagem","Origem"]];
+  for(const m of RESULT) linhas.push([br(m.d), m.h, m.a, m.t.replace(/\n/g," | "), m.fonte]);
+  const csv = "﻿" + linhas.map(l => l.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
+  baixar(csv, `rastreio_${alvos.join("_")}.csv`, "text/csv;charset=utf-8");
+}
+function exportarTXT(alvos){
+  let t = `RASTREIO: ${alvos.join(", ")}\nGerado em ${new Date().toLocaleString("pt-BR")}\nTotal: ${RESULT.length} mensagens\n${"=".repeat(60)}\n`;
+  let dia = "";
+  for(const m of RESULT){
+    if(m.d !== dia){ dia = m.d; t += `\n--- ${br(m.d)} (${diaSemana(m.d)}) ---\n`; }
+    t += `[${m.h}] ${m.a}: ${m.t}\n`;
+  }
+  baixar(t, `rastreio_${alvos.join("_")}.txt`, "text/plain;charset=utf-8");
+}
+function baixar(conteudo, nome, tipo){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([conteudo], {type: tipo}));
+  a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ================= utils ================= */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const br = d => d.split("-").reverse().join("/");
+const nnum = n => Number(n).toLocaleString("pt-BR");
+const DS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+function diaSemana(d){ const [y,m,dd] = d.split("-").map(Number); return DS[new Date(y,m-1,dd).getDay()]; }
+</script>
+</body>
+</html>
