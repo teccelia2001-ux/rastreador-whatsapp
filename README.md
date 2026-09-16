@@ -4,8 +4,8 @@ Informa todas as mensagens de um grupo que citam um determinado número,
 organizadas por data. Usa o mesmo coletor por favorito do termômetro
 (`busca-servico-obras`), só que espelhando a tela do WhatsApp Web.
 
+- **Link público:** https://teccelia2001-ux.github.io/rastreador-whatsapp/
 - **Fontes na máquina:** `PROJETOS CLOUDE/rastreador-whatsapp/`
-- Ainda não publicado — é abrir o `index.html` no navegador.
 
 ## Como funciona
 
@@ -31,7 +31,8 @@ histórico antigo e para conferir a coleta. As duas fontes podem conviver.
 ## Arquivos
 
 Um arquivo só — `index.html`, com tela, estilo e código dentro. Sem build e sem
-dependência externa.
+dependência externa. Publicar é `git commit` + `git push`; o GitHub Pages
+republica sozinho em cerca de um minuto.
 
 A última coleta aplicada fica no `localStorage` do próprio aparelho, com
 proteção para o caso de ele estar bloqueado — aba anônima ou `file://` — em vez
