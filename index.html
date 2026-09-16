@@ -212,6 +212,20 @@ function candidatos(){
     .sort((x,y)=>y.querySelectorAll("[data-pre-plain-text]").length-x.querySelectorAll("[data-pre-plain-text]").length);
 }
 
+/* Um painel de conversa de verdade aceita ficar rolado. Painel que volta sozinho
+   para o zero so PARECE estar no topo — e foi isso que fazia a coleta terminar
+   numa tela cheia. Testo antes de comecar. */
+async function serve(el){
+  const fundo=el.scrollHeight-el.clientHeight;
+  if(fundo<=10) return false;
+  const guardado=el.scrollTop;
+  el.scrollTop=fundo;
+  await espera(160);
+  const passou=el.scrollTop>2;
+  if(!passou) el.scrollTop=guardado;
+  return passou;
+}
+
 /* sobe um pedaco e responde se a tela realmente andou */
 async function sobe(el){
   const antes=el.scrollTop;
@@ -250,8 +264,12 @@ function colher(){
   return vistos.size;
 }
 
-const cands=candidatos();
-if(!cands.length){ p.remove(); alert("Nao encontrei a area rolavel das mensagens. Confira se a conversa esta aberta na tela e use o 'Copiar diagnostico da tela' no sistema."); return; }
+const todos=candidatos();
+if(!todos.length){ p.remove(); alert("Nao encontrei a area rolavel das mensagens. Confira se a conversa esta aberta na tela e use o 'Copiar diagnostico da tela' no sistema."); return; }
+passo("Procurando o painel da conversa…");
+const cands=[];
+for(const c of todos) if(await serve(c)) cands.push(c);
+if(!cands.length) cands.push(todos[0]);   /* nenhum passou: sigo com o mais provavel */
 let iCand=0, rol=cands[0];
 
 const t0=Date.now();
@@ -291,6 +309,15 @@ while(!parar && igual<8 && voltas<6000){
   } else travado=0;
 
   igual = (agora>antes || rol.scrollHeight>alturaAntes) ? 0 : igual+1;
+
+  /* empacou de vez: antes de dizer que acabou, tento o proximo painel — um painel
+     que volta sozinho ao zero se disfarca de "cheguei ao inicio da conversa" */
+  if(igual>=4 && iCand+1<cands.length){
+    iCand++; rol=cands[iCand]; igual=0; travado=0; chegouAoTopo=false;
+    passo("Parou de crescer — tentando outro painel ("+(iCand+1)+" de "+cands.length+")…");
+    await espera(500); continue;
+  }
+
   passo("<b>"+agora+"</b> mensagens espelhadas<br><span style='color:#93a3bf'>subindo o historico · passo "+voltas+
     (LIMITE?" · limite "+LIMITE:"")+(igual?" · quase no fim ("+igual+"/8)":"")+"</span>");
   if(LIMITE && agora>=LIMITE) break;
