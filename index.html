@@ -154,7 +154,9 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 
 <script>
 const $ = id => document.getElementById(id);
-const VERSAO = "20260916-1612";
+/* Sobe de 1 em 1 a cada publicação. VERSAO_DATA é só para a dica do rodapé. */
+const VERSAO = 10;
+const VERSAO_DATA = "16/09/2026";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
 
@@ -190,7 +192,7 @@ function achaMain(){
 const main=achaMain();
 if(!main){alert("Nao achei as mensagens na tela.\\n\\nConfira se a conversa do grupo esta ABERTA (nao so a lista de conversas) e se ja carregou. Se continuar assim, use o botao 'Copiar diagnostico da tela' no sistema e me mande o resultado.");return}
 const LIMITE=${LIM};
-const VERSAO="${VERSAO}";
+const VERSAO=${VERSAO};
 
 /* painel de andamento */
 const p=document.createElement("div");
@@ -464,7 +466,7 @@ $("aplicar").onclick = () => {
   const velho = String(o.v || "") !== String(VERSAO);
   $("colaRes").innerHTML = '<span class="ok">✅ ' + nnum(o.msgs.length) + ' mensagens aplicadas.</span>' +
     (velho
-      ? `<br><span class="bad">⚠️ Esta coleta veio de um <b>coletor antigo</b> (${o.v ? "v"+o.v : "sem versão"}; a atual é v${VERSAO}).
+      ? `<br><span class="bad">⚠️ Esta coleta veio de um <b>coletor antigo</b> (${typeof o.v === "number" ? "v"+o.v : "versão anterior"}; a atual é v${VERSAO}).
          Refaça o favorito: clique em <b>Copiar o coletor</b> e cole de novo na URL dele — versões antigas deixavam mensagens para trás.</span>`
       : `<br><span class="muted">Coletor v${o.v} — em dia.</span>`);
   renderFontes(); rastrear();
@@ -751,11 +753,8 @@ const DS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 function diaSemana(d){ const [y,m,dd] = d.split("-").map(Number); return DS[new Date(y,m-1,dd).getDay()]; }
 
 /* ================= versão ================= */
-const vBonita = v => /^\d{8}-\d{4}$/.test(String(v||""))
-  ? `${v.slice(6,8)}/${v.slice(4,6)}/${v.slice(0,4)} ${v.slice(9,11)}:${v.slice(11,13)}`
-  : String(v||"desconhecida");
 $("rodape").innerHTML = `Rastreador de número — WhatsApp · <b>v${VERSAO}</b>`;
-$("rodape").title = `Publicado em ${vBonita(VERSAO)}.\nSe o site estiver desatualizado, recarregue com Ctrl+F5.`;
+$("rodape").title = `Versão ${VERSAO}, publicada em ${VERSAO_DATA}.\nSe o site estiver desatualizado, recarregue com Ctrl+F5.`;
 </script>
 </body>
 </html>
