@@ -257,40 +257,62 @@ if(colher()===0){
   return;
 }
 let igual=0, voltas=0;
-/* sobe o historico ate a contagem parar de crescer — mesma logica do coletor do termometro */
-while(!parar && igual<4 && voltas<3000){
+/* Sobe o historico AOS POUCOS: o WhatsApp descarta da tela o que fica longe da
+   rolagem, entao pular direto para o topo deixaria mensagens para tras — leio a
+   cada passo. Como no termometro, so paro quando a contagem deixa de crescer. */
+while(!parar && igual<8 && voltas<6000){
   voltas++;
-  const antes=vistos.size;
-  rol.scrollTop=0;
-  await espera(650);
-  /* se aparecer o botao de carregar mensagens antigas, clica */
-  const b=[...main.querySelectorAll("button,div[role='button']")]
-    .find(x=>/carregar mensagens|mensagens anteriores|click here to load|older messages/i.test(x.innerText||""));
-  if(b){ b.click(); await espera(900); }
+  const antes=vistos.size, alturaAntes=rol.scrollHeight;
+  rol.scrollTop = Math.max(0, rol.scrollTop - Math.round(rol.clientHeight*0.75));
+  await espera(420);
+  colher();
+  if(rol.scrollTop<=2){
+    /* no topo: da tempo do WhatsApp trazer mais historico */
+    const b=[...main.querySelectorAll("button,div[role='button']")]
+      .find(x=>/carregar mensagens|mensagens anteriores|click here to load|older messages/i.test(x.innerText||""));
+    if(b){ b.click(); await espera(1200); }
+    await espera(1000);
+  }
   const agora=colher();
-  igual = agora>antes ? 0 : igual+1;
-  passo("<b>"+agora+"</b> mensagens espelhadas · volta "+voltas+(LIMITE?" · limite "+LIMITE:""));
+  igual = (agora>antes || rol.scrollHeight>alturaAntes) ? 0 : igual+1;
+  passo("<b>"+agora+"</b> mensagens espelhadas<br><span style='color:#93a3bf'>subindo o historico · passo "+voltas+
+    (LIMITE?" · limite "+LIMITE:"")+(igual?" · quase no fim ("+igual+"/8)":"")+"</span>");
   if(LIMITE && agora>=LIMITE) break;
-  if(rol.scrollTop>0 && agora===antes) await espera(400);
 }
 colher();
 
 const msgs=[...vistos.values()].sort((x,y)=>(x.d+x.h).localeCompare(y.d+y.h));
 const res={v:VERSAO,gerado:new Date().toISOString(),grupo:grupo,total:msgs.length,msgs:msgs};
 const txt=JSON.stringify(res);
-let copiou=false;
-try{ await navigator.clipboard.writeText(txt); copiou=true; }catch(e){ window.__coleta=txt; }
+window.__coleta=txt;
 const seg=Math.round((Date.now()-t0)/1000);
 const periodo=msgs.length?(msgs[0].d.split("-").reverse().join("/")+" a "+msgs[msgs.length-1].d.split("-").reverse().join("/")):"—";
+
+/* Nao tento copiar sozinho: a permissao do navegador vale poucos segundos depois
+   do clique no favorito e a coleta demora mais que isso. O botao abaixo e um
+   clique novo — ai a copia funciona. */
+p.style.maxWidth="380px";
 p.innerHTML='<div style="font-weight:800;color:#86efac;font-size:15px;margin-bottom:6px">✅ Coleta concluida</div>'+
  '<div><b>'+msgs.length+'</b> mensagens em <b>'+seg+'s</b><br>'+(grupo?grupo+'<br>':'')+periodo+'</div>'+
- '<div style="color:#93a3bf;margin-top:6px">'+(copiou
-   ? 'Resultado copiado. Volte ao sistema, cole no campo e clique em <b>Aplicar coleta</b>.'
-   : 'Nao consegui copiar: rode <b>copy(window.__coleta)</b> no console.')+'</div>'+
- '<button id="__cf" style="margin-top:10px;padding:6px 12px;border-radius:8px;border:0;background:#2563eb;color:#fff;font:600 12px system-ui;cursor:pointer">Fechar</button>';
+ '<div style="color:#93a3bf;margin-top:8px">Clique no botao e cole no sistema, em <b>Aplicar coleta</b>.</div>'+
+ '<textarea id="__ct" readonly style="width:100%;height:52px;margin-top:8px;background:#0b1220;color:#93a3bf;'+
+ 'border:1px solid #2c3b57;border-radius:8px;padding:6px;font:11px ui-monospace,Consolas,monospace;resize:none"></textarea>'+
+ '<div style="display:flex;gap:8px;margin-top:8px">'+
+ '<button id="__cc" style="flex:1;padding:8px 12px;border-radius:8px;border:0;background:#25d366;color:#06281a;font:800 13px system-ui;cursor:pointer">📋 Copiar resultado</button>'+
+ '<button id="__cf" style="padding:8px 12px;border-radius:8px;border:0;background:#2563eb;color:#fff;font:600 12px system-ui;cursor:pointer">Fechar</button></div>'+
+ '<div id="__cm" style="color:#93a3bf;margin-top:6px;min-height:16px"></div>';
+const ta=p.querySelector("#__ct"); ta.value=txt;
 p.querySelector("#__cf").onclick=()=>p.remove();
-setTimeout(()=>{if(p.isConnected)p.remove()},90000);
-alert("Coleta concluida: "+msgs.length+" mensagens em "+seg+"s.\\n"+(copiou?"Resultado copiado — cole no sistema.":"Rode copy(window.__coleta) no console."));
+p.querySelector("#__cc").onclick=async()=>{
+  const m=p.querySelector("#__cm");
+  ta.focus(); ta.select(); ta.setSelectionRange(0,txt.length);
+  let ok=false;
+  try{ await navigator.clipboard.writeText(txt); ok=true; }catch(e){}
+  if(!ok){ try{ ok=document.execCommand("copy"); }catch(e){} }
+  m.innerHTML = ok ? '<b style="color:#86efac">Copiado! Cole no sistema.</b>'
+    : 'O navegador nao deixou copiar. O texto ja esta selecionado acima: aperte <b>Ctrl+C</b>.';
+};
+alert("Coleta concluida: "+msgs.length+" mensagens em "+seg+"s.\\n\\nClique em 'Copiar resultado' no painel verde, no canto da tela.");
 })()`;
 }
 
