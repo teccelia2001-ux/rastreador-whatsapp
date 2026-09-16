@@ -155,7 +155,7 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 <script>
 const $ = id => document.getElementById(id);
 /* Sobe de 1 em 1 a cada publicação. VERSAO_DATA é só para a dica do rodapé. */
-const VERSAO = 10;
+const VERSAO = 11;
 const VERSAO_DATA = "16/09/2026";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
@@ -557,20 +557,38 @@ function casa(texto, alvos, exato){
        02 B2
    Daí saem a data do serviço, o status e os itens com quantidade. O que não se
    encaixar fica de fora dos campos, mas a mensagem inteira continua aparecendo. */
-const RE_STATUS = /^(instalad[oa]s?|retirad[oa]s?|substitu[ií]d[oa]s?|trocad[oa]s?|executad[oa]s?|conclu[ií]d[oa]s?|finalizad[oa]s?|pendente|cancelad[oa]s?|em andamento|aguardando|manuten[çc][ãa]o)\b/i;
+const PAL_STATUS = "instalad[oa]s?|retirad[oa]s?|substitu[ií]d[oa]s?|trocad[oa]s?|executad[oa]s?|conclu[ií]d[oa]s?|finalizad[oa]s?|pendente|cancelad[oa]s?|em andamento|aguardando|manuten[çc][ãa]o";
+const RE_STATUS_G = new RegExp("\\b(" + PAL_STATUS + ")\\b", "gi");
 
+/* Os campos são procurados em QUALQUER posição, não só no começo da linha: a
+   mensagem pode vir "Obra:0032503170", "obra 0032503170" ou tudo grudado numa
+   linha só. Cada campo achado é retirado do texto; o que sobra vira item. */
 function extrair(texto){
   const r = {dia:"", obra:"", status:[], itens:[]};
-  for(let l of String(texto).split("\n")){
-    l = l.trim().replace(/[.;]+$/,"");
-    if(!l) continue;
-    let m;
-    if((m = l.match(/^dias?\s*:?\s*(\d{1,2}[\/.\-]\d{1,2}(?:[\/.\-]\d{2,4})?)/i))){ r.dia = m[1]; continue; }
-    if((m = l.match(/^obras?\s*:?\s*(.+)$/i))){ r.obra = m[1].trim(); continue; }
-    if(RE_STATUS.test(l)){ r.status.push(l); continue; }
-    if((m = l.match(/^(\d{1,4})\s*[xX]?\s+(\S.{0,39})$/))){ r.itens.push({qtd:+m[1], item:m[2].trim()}); continue; }
-    if((m = l.match(/^(\S.{0,39}?)\s+[xX]?\s*(\d{1,4})$/))){ r.itens.push({qtd:+m[2], item:m[1].trim()}); continue; }
-    if(l.length <= 40 && l.split(/\s+/).length <= 4) r.itens.push({qtd:1, item:l});
+  let t = " " + String(texto).replace(/\r/g,"") + " ";
+  let m;
+
+  if((m = t.match(/\bdias?\s*[:\-]?\s*(\d{1,2}[\/.\-]\d{1,2}(?:[\/.\-]\d{2,4})?)/i))){
+    r.dia = m[1]; t = t.replace(m[0], "\n");
+  }
+  /* aceita colado na palavra (obra0032503170), com dois-pontos ou com espaço;
+     pega só o bloco de dígitos para não engolir o resto da linha */
+  if((m = t.match(/\bobras?\s*[:\-]?\s*(\d[\d.\-\/]{2,})/i))){
+    r.obra = m[1].replace(/[.\-\/]+$/, ""); t = t.replace(m[0], "\n");
+  }
+  t = t.replace(RE_STATUS_G, s => { r.status.push(s.trim()); return "\n"; });
+
+  /* o que sobrou: quebro por linha e por separadores comuns */
+  for(let p of t.split(/[\n,;•·|]+/)){
+    p = p.trim().replace(/^[-–:]+|[.;:]+$/g, "").trim();
+    if(!p) continue;
+    let i;
+    if((i = p.match(/^(\d{1,4})\s*[xX]?\s+(\S.{0,39})$/))){ r.itens.push({qtd:+i[1], item:i[2].trim()}); continue; }
+    if((i = p.match(/^(\S.{0,39}?)\s+[xX]?\s*(\d{1,4})$/))){ r.itens.push({qtd:+i[2], item:i[1].trim()}); continue; }
+    if(/^\d+$/.test(p)) continue;                       /* número solto não é item */
+    /* sem quantidade, só aceito o que parece código (B2, C3, PT-10) — senão
+       texto corrido viraria "item" */
+    if(/^[A-ZÀ-Ú0-9][A-ZÀ-Ú0-9\-\/.]{0,14}$/.test(p)) r.itens.push({qtd:1, item:p});
   }
   return r;
 }
