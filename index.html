@@ -142,11 +142,13 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
     <div class="muted" style="margin-top:8px">Informe o número no passo 1 e traga a coleta no passo 2.</div>
   </div>
 
+  <div class="muted" id="rodape" style="text-align:center;font-size:12px;padding:10px 0 4px"></div>
+
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const VERSAO = 1;
+const VERSAO = "20260916-1549";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
 
@@ -182,7 +184,7 @@ function achaMain(){
 const main=achaMain();
 if(!main){alert("Nao achei as mensagens na tela.\\n\\nConfira se a conversa do grupo esta ABERTA (nao so a lista de conversas) e se ja carregou. Se continuar assim, use o botao 'Copiar diagnostico da tela' no sistema e me mande o resultado.");return}
 const LIMITE=${LIM};
-const VERSAO=${VERSAO};
+const VERSAO="${VERSAO}";
 
 /* painel de andamento */
 const p=document.createElement("div");
@@ -336,7 +338,8 @@ const periodo=msgs.length?(msgs[0].d.split("-").reverse().join("/")+" a "+msgs[m
    clique novo — ai a copia funciona. */
 p.style.maxWidth="380px";
 p.innerHTML='<div style="font-weight:800;color:#86efac;font-size:15px;margin-bottom:6px">✅ Coleta concluida</div>'+
- '<div><b>'+msgs.length+'</b> mensagens em <b>'+seg+'s</b><br>'+(grupo?grupo+'<br>':'')+periodo+'</div>'+
+ '<div><b>'+msgs.length+'</b> mensagens em <b>'+seg+'s</b><br>'+(grupo?grupo+'<br>':'')+periodo+
+ '<br><span style="color:#93a3bf">coletor v'+VERSAO+'</span></div>'+
  (parar ? '<div style="color:#fbbf24;margin-top:6px">⚠️ Voce mandou parar — tem mais historico acima.</div>'
    : chegouAoTopo ? '<div style="color:#86efac;margin-top:6px">✔️ Chegou ao inicio do que o WhatsApp Web tem carregado.</div>'
    : '<div style="color:#fbbf24;margin-top:6px">⚠️ Parou sem chegar ao topo: a tela nao rolou mais. Rode de novo, ou use o diagnostico no sistema.</div>')+
@@ -452,7 +455,12 @@ $("aplicar").onclick = () => {
   FONTES.push({nome, origem:"coleta", msgs:o.msgs});
   guarda.set(bruto);
   $("recarregar").hidden = false;
-  $("colaRes").innerHTML = '<span class="ok">✅ ' + nnum(o.msgs.length) + ' mensagens aplicadas.</span>';
+  const velho = String(o.v || "") !== String(VERSAO);
+  $("colaRes").innerHTML = '<span class="ok">✅ ' + nnum(o.msgs.length) + ' mensagens aplicadas.</span>' +
+    (velho
+      ? `<br><span class="bad">⚠️ Esta coleta veio de um <b>coletor antigo</b> (v${o.v || "sem versão"}; a atual é v${VERSAO}).
+         Refaça o favorito: clique em <b>Copiar o coletor</b> e cole de novo na URL dele — versões antigas deixavam mensagens para trás.</span>`
+      : `<br><span class="muted">Coletor v${o.v} — em dia.</span>`);
   renderFontes(); rastrear();
 };
 $("limparColeta").onclick = () => {
@@ -660,6 +668,13 @@ const br = d => d.split("-").reverse().join("/");
 const nnum = n => Number(n).toLocaleString("pt-BR");
 const DS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 function diaSemana(d){ const [y,m,dd] = d.split("-").map(Number); return DS[new Date(y,m-1,dd).getDay()]; }
+
+/* ================= versão ================= */
+const vBonita = v => /^\d{8}-\d{4}$/.test(String(v||""))
+  ? `${v.slice(6,8)}/${v.slice(4,6)}/${v.slice(0,4)} ${v.slice(9,11)}:${v.slice(11,13)}`
+  : String(v||"desconhecida");
+$("rodape").innerHTML = `Rastreador de número — WhatsApp · <b>v${VERSAO}</b>`;
+$("rodape").title = `Publicado em ${vBonita(VERSAO)}.\nSe o site estiver desatualizado, recarregue com Ctrl+F5.`;
 </script>
 </body>
 </html>
