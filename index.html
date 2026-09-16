@@ -68,6 +68,12 @@ details.dia>summary .c{color:var(--muted);font-weight:500;font-size:12px}
 .msg .h b{color:var(--accent)}
 .msg .t{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
 mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weight:700}
+.ets{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.et{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid var(--line);background:var(--panel)}
+.et-dia{color:var(--muted)}
+.et-obra{color:var(--accent);border-color:var(--accent)}
+.et-st{color:var(--ok-txt);border-color:var(--ok);background:var(--ok-bg)}
+.et-item{color:var(--mark);border-color:var(--mark)}
 .dropzona{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px}
 .dropzona:hover,.dropzona.over{border-color:var(--accent);color:var(--accent)}
 </style>
@@ -148,7 +154,7 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 
 <script>
 const $ = id => document.getElementById(id);
-const VERSAO = "20260916-1556";
+const VERSAO = "20260916-1612";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
 
@@ -541,6 +547,34 @@ function casa(texto, alvos, exato){
   return alvos.filter(a => blocos.includes(a));
 }
 
+/* ---------- lê o que vem escrito junto do número ----------
+   As mensagens costumam vir assim:
+       Dia 15/09/26
+       Obra:0032503170
+       Instalado
+       02 B2
+   Daí saem a data do serviço, o status e os itens com quantidade. O que não se
+   encaixar fica de fora dos campos, mas a mensagem inteira continua aparecendo. */
+const RE_STATUS = /^(instalad[oa]s?|retirad[oa]s?|substitu[ií]d[oa]s?|trocad[oa]s?|executad[oa]s?|conclu[ií]d[oa]s?|finalizad[oa]s?|pendente|cancelad[oa]s?|em andamento|aguardando|manuten[çc][ãa]o)\b/i;
+
+function extrair(texto){
+  const r = {dia:"", obra:"", status:[], itens:[]};
+  for(let l of String(texto).split("\n")){
+    l = l.trim().replace(/[.;]+$/,"");
+    if(!l) continue;
+    let m;
+    if((m = l.match(/^dias?\s*:?\s*(\d{1,2}[\/.\-]\d{1,2}(?:[\/.\-]\d{2,4})?)/i))){ r.dia = m[1]; continue; }
+    if((m = l.match(/^obras?\s*:?\s*(.+)$/i))){ r.obra = m[1].trim(); continue; }
+    if(RE_STATUS.test(l)){ r.status.push(l); continue; }
+    if((m = l.match(/^(\d{1,4})\s*[xX]?\s+(\S.{0,39})$/))){ r.itens.push({qtd:+m[1], item:m[2].trim()}); continue; }
+    if((m = l.match(/^(\S.{0,39}?)\s+[xX]?\s*(\d{1,4})$/))){ r.itens.push({qtd:+m[2], item:m[1].trim()}); continue; }
+    if(l.length <= 40 && l.split(/\s+/).length <= 4) r.itens.push({qtd:1, item:l});
+  }
+  return r;
+}
+
+const chaveItem = s => String(s).toUpperCase().replace(/\s+/g," ").trim();
+
 function rastrear(){
   const alvos = lerNums();
   const temFonte = FONTES.some(f => f.msgs.length);
@@ -556,7 +590,7 @@ function rastrear(){
   for(const f of FONTES)
     for(const m of f.msgs){
       const achou = casa(m.t, alvos, exato);
-      if(achou.length) RESULT.push({...m, fonte:f.nome, achou});
+      if(achou.length) RESULT.push({...m, fonte:f.nome, achou, campos:extrair(m.t)});
     }
   RESULT.sort((a,b) => (a.d+a.h).localeCompare(b.d+b.h));
   $("vazio").hidden = true;
@@ -583,6 +617,9 @@ function render(alvos){
     <div class="card"><div class="lbl">Pessoas</div><div class="val">${nnum(Object.keys(autores).length)}</div></div>
     <div class="card"><div class="lbl">Período</div><div class="val pq">${br(dias[0])}<br>até ${br(dias[dias.length-1])}</div></div>
     <div class="card"><div class="lbl">Quem mais citou</div><div class="val pq">${esc(top[0])}<br><span class="muted">${nnum(top[1])} menção(ões)</span></div></div>
+    ${(() => { const it = somaItens(); return it.length ? `
+    <div class="card"><div class="lbl">Itens escritos junto</div><div class="val">${nnum(it.length)}</div>
+      <div class="lbl" style="margin-top:4px;text-transform:none;letter-spacing:0">${nnum(it.reduce((s,i)=>s+i.qtd,0))} no total · ${esc(it[0].item)} lidera</div></div>` : ""; })()}
   </div>`;
 
   const ordenados = ORDEM === "asc" ? dias : dias.slice().reverse();
@@ -593,6 +630,7 @@ function render(alvos){
         <div class="msg">
           <div class="h">${m.h} · <b>${esc(m.a)}</b>${FONTES.length>1?' · '+esc(m.fonte):''}</div>
           <div class="t">${destacar(m.t, alvos)}</div>
+          ${etiquetas(m.campos)}
         </div>`).join("")}</div>
     </details>`).join("");
 
@@ -603,7 +641,7 @@ function render(alvos){
           <option value="desc"${ORDEM==="desc"?" selected":""}>Mais recente primeiro</option>
           <option value="asc"${ORDEM==="asc"?" selected":""}>Mais antigo primeiro</option>
         </select>
-        <select id="vis"><option value="dias">Ver por data</option><option value="tabela">Ver como tabela</option></select>
+        <select id="vis"><option value="dias">Ver por data</option><option value="tabela">Ver como tabela</option><option value="itens">Ver itens somados</option></select>
         <button class="sec" id="expCsv">📊 Exportar CSV</button>
         <button class="sec" id="expTxt">📄 Exportar TXT</button>
         <button class="sec" id="alterna">Recolher tudo</button>
@@ -613,8 +651,9 @@ function render(alvos){
 
   $("ord").onchange = e => { ORDEM = e.target.value; render(alvos); };
   $("vis").onchange = e => {
-    $("corpo").innerHTML = e.target.value === "tabela" ? tabela(alvos) : linhaDoTempo;
-    $("alterna").hidden = e.target.value === "tabela";
+    const v = e.target.value;
+    $("corpo").innerHTML = v === "tabela" ? tabela(alvos) : v === "itens" ? tabelaItens() : linhaDoTempo;
+    $("alterna").hidden = v !== "dias";
   };
   $("expCsv").onclick = () => exportarCSV(alvos);
   $("expTxt").onclick = () => exportarTXT(alvos);
@@ -623,6 +662,38 @@ function render(alvos){
     document.querySelectorAll("details.dia").forEach(d => d.open = abrir);
     e.target.textContent = abrir ? "Recolher tudo" : "Expandir tudo";
   };
+}
+
+function etiquetas(c){
+  if(!c) return "";
+  const e = [];
+  if(c.dia) e.push(`<span class="et et-dia">📅 dia ${esc(c.dia)}</span>`);
+  if(c.obra) e.push(`<span class="et et-obra">🏗️ ${esc(c.obra)}</span>`);
+  c.status.forEach(s => e.push(`<span class="et et-st">${esc(s)}</span>`));
+  c.itens.forEach(i => e.push(`<span class="et et-item">📦 ${i.qtd>1?i.qtd+"× ":""}${esc(i.item)}</span>`));
+  return e.length ? `<div class="ets">${e.join("")}</div>` : "";
+}
+
+/* soma os itens de todas as mensagens encontradas */
+function somaItens(){
+  const mapa = new Map();
+  for(const m of RESULT)
+    for(const i of (m.campos ? m.campos.itens : [])){
+      const k = chaveItem(i.item);
+      const r = mapa.get(k) || {item:i.item, qtd:0, vezes:0, dias:new Set()};
+      r.qtd += i.qtd; r.vezes++; r.dias.add(m.d);
+      mapa.set(k, r);
+    }
+  return [...mapa.values()].sort((a,b) => b.qtd - a.qtd || a.item.localeCompare(b.item));
+}
+
+function tabelaItens(){
+  const itens = somaItens();
+  if(!itens.length) return `<div class="muted" style="padding:14px">Nenhuma mensagem trouxe item escrito junto do número.</div>`;
+  return `<div class="scroll"><table><thead><tr><th>Item</th><th class="num">Quantidade</th><th class="num">Mensagens</th><th>Dias</th></tr></thead><tbody>${
+    itens.map(i => `<tr><td><b>${esc(i.item)}</b></td><td class="num">${nnum(i.qtd)}</td><td class="num">${nnum(i.vezes)}</td>
+      <td class="muted">${[...i.dias].sort().map(br).join(", ")}</td></tr>`).join("")
+  }</tbody></table></div>`;
 }
 
 function tabela(alvos){
@@ -641,8 +712,18 @@ function destacar(texto, alvos){
 
 /* ================= exportação ================= */
 function exportarCSV(alvos){
-  const linhas = [["Data","Hora","Quem","Mensagem","Origem"]];
-  for(const m of RESULT) linhas.push([br(m.d), m.h, m.a, m.t.replace(/\n/g," | "), m.fonte]);
+  const linhas = [["Data","Hora","Quem","Dia (na mensagem)","Obra","Status","Itens","Mensagem","Origem"]];
+  for(const m of RESULT){
+    const c = m.campos || {dia:"",obra:"",status:[],itens:[]};
+    linhas.push([br(m.d), m.h, m.a, c.dia, c.obra, c.status.join(" / "),
+      c.itens.map(i => (i.qtd>1 ? i.qtd+"x " : "") + i.item).join(" / "),
+      m.t.replace(/\n/g," | "), m.fonte]);
+  }
+  const itens = somaItens();
+  if(itens.length){
+    linhas.push([], ["ITENS SOMADOS"], ["Item","Quantidade","Mensagens"]);
+    for(const i of itens) linhas.push([i.item, i.qtd, i.vezes]);
+  }
   const csv = "﻿" + linhas.map(l => l.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
   baixar(csv, `rastreio_${alvos.join("_")}.csv`, "text/csv;charset=utf-8");
 }
