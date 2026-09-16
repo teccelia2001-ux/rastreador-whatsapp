@@ -148,7 +148,7 @@ mark{background:var(--mark);color:#111;padding:0 3px;border-radius:3px;font-weig
 
 <script>
 const $ = id => document.getElementById(id);
-const VERSAO = "20260916-1549";
+const VERSAO = "20260916-1556";
 const WA_URL = "https://web.whatsapp.com/";
 const CHAVE = "rastreador-wa-coleta";
 
@@ -458,7 +458,7 @@ $("aplicar").onclick = () => {
   const velho = String(o.v || "") !== String(VERSAO);
   $("colaRes").innerHTML = '<span class="ok">✅ ' + nnum(o.msgs.length) + ' mensagens aplicadas.</span>' +
     (velho
-      ? `<br><span class="bad">⚠️ Esta coleta veio de um <b>coletor antigo</b> (v${o.v || "sem versão"}; a atual é v${VERSAO}).
+      ? `<br><span class="bad">⚠️ Esta coleta veio de um <b>coletor antigo</b> (${o.v ? "v"+o.v : "sem versão"}; a atual é v${VERSAO}).
          Refaça o favorito: clique em <b>Copiar o coletor</b> e cole de novo na URL dele — versões antigas deixavam mensagens para trás.</span>`
       : `<br><span class="muted">Coletor v${o.v} — em dia.</span>`);
   renderFontes(); rastrear();
